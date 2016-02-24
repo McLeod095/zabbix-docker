@@ -1,0 +1,19 @@
+#!/bin/bash
+
+SOURCE="/etc/zabbix/bin/docker-functions"
+
+if [ -e "${SOURCE}" ]; then 
+	source "${SOURCE}"
+else
+	echo "ZBX_NOTSUPPORTED"
+	exit 1
+fi
+
+CONTAINER="$1"
+
+if [ -z "${CONTAINER}" ]; then
+	echo "ZBX_NOTSUPPORTED"
+	exit 1
+else
+	get_status "${CONTAINER}"
+fi

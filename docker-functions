@@ -1,0 +1,96 @@
+#!/bin/bash
+
+function get_cgroup(){
+	local CGROUP
+	CGROUP=$(grep -m1 "^cgroup" /proc/mounts | cut -d" " -f 2)
+	echo ${CGROUP%/*}
+}
+
+function get_docker_path() {
+	local RPATH
+	local RET
+	RPATH="$1"
+	if [ -d "${RPATH}/docker" ]; then
+		RET="${RPATH}/docker"
+	elif [ -d "${RPATH}/system.slice" ]; then
+		RET="${RPATH}/system.slice"
+	else
+		RET=""
+	fi
+	echo "${RET}"
+	[ -n "${RET}" ] && return 0 || return 1
+}
+
+function get_path() {
+	local CAT
+	local CGROUP
+	local FID
+	local path
+	local RET
+	CAT="$1"
+	FID="$2"
+	CGROUP=$(get_cgroup)
+	if [ -d "${CGROUP}/${CAT}" ]; then
+		path=$(get_docker_path "${CGROUP}/${CAT}")
+		if [ -d "${path}/docker-${FID}.scope" ]; then
+			RET="${path}/docker-${FID}.scope"
+		elif [ -d "${path}/${FID}" ]; then
+			RET="${path}/${FID}"
+		else
+			RET=""
+		fi
+	fi
+	echo "${RET}"
+	[ -n "${RET}" ] && return 0 || return 1
+}
+
+#get_param memory.kmem.failcnt  b3408588cc57e6cadb969c2e6dd7457ab5801aa85983ea17633453a08b628a7f total_rss
+function get_param() {
+	local PARAM
+	local FID
+	local CAT
+	local path
+	local result
+	local cat_base
+	local cat_ext
+	CAT="$1"
+	FID="$2"
+	PARAM="$3"
+
+	if [[ "$CAT" == *.* ]]; then
+		cat_base=${CAT%%\.*}
+		cat_ext=${CAT#*\.}
+	else
+		cat_base=${CAT}
+		cat_ext=""
+	fi
+	
+	path=$(get_path "${cat_base}" "${FID}")
+	if [ -z "${path}" ]; then
+		echo "ZBX_NOTSUPPORTED"
+		exit 1
+	fi
+	path+="/${cat_base}.${cat_ext}"
+	if [ -n "${PARAM}" ]; then
+		result=$(grep -m1 "^${PARAM}" $path 2>/dev/null| cut -d" " -f 2)
+	else 
+		result=$(<$path)
+	fi
+	if [ -z "$result" ]; then
+		echo "ZBX_NOTSUPPORTED"
+		exit 1
+	else
+		echo $result
+		return 0
+	fi
+}
+
+function get_status() {
+	local FID
+	FID="${1}"
+	if get_path "cpuacct" "${FID}">/dev/null; then
+		echo "1"
+	else
+		echo "0"
+	fi
+}

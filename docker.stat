@@ -1,0 +1,29 @@
+#!/bin/bash
+
+SOURCE="/etc/zabbix/bin/docker-functions"
+
+if [ -e "${SOURCE}" ]; then 
+	source "${SOURCE}"
+else
+	echo "ZBX_NOTSUPPORTED"
+	exit 1
+fi
+
+CATEGORY="$1"
+CONTAINER="$2"
+PARAM="$3"
+
+if [ -z "${CATEGORY}" -o -z "${CONTAINER}" ]; then
+	echo "ZBX_NOTSUPPORTED"
+	exit 1
+else
+	case "$PARAM" in
+		"cpuacct.stat")
+			echo "$(( $(get_param "${CATEGORY}" "${CONTAINER}" "${PARAM}") / $(nproc) ))"
+			;;
+		*)
+			get_param "${CATEGORY}" "${CONTAINER}" "${PARAM}"
+			;;
+	esac
+fi
+
